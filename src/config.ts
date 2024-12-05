@@ -1,0 +1,1 @@
+export const backendUrl = "https://library-backend-2mo2.onrender.com"
