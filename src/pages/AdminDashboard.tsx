@@ -10,27 +10,34 @@ import {
 } from "recharts";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Book } from "../types";
 import axios from "axios";
 import { backendUrl } from "../config";
+import { Book } from "../types";
 
 export default function AdminDashboard() {
   const [books, setBooks] = useState<Book[]>([]);
 
+  // Fetch books from backend
   async function init() {
-    const response = await axios.get(`${backendUrl}/getBooks`);
-    setBooks(response.data.data);
+    try {
+      const response = await axios.get(`${backendUrl}/getBooks`);
+      setBooks(response.data.data);
+    } catch (error) {
+      console.error("Error fetching books:", error);
+    }
   }
 
   useEffect(() => {
     init();
   }, []);
 
+  // Calculate books by category
   const booksByCategory = books.reduce((acc, book) => {
     acc[book.category] = (acc[book.category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
+  // Filter overdue books
   const overdueBooks = books.filter((book) => {
     const issuedDate = book.issuedDate ? new Date(book.issuedDate) : null;
     const dueDate = book.dueDate
@@ -38,30 +45,26 @@ export default function AdminDashboard() {
       : issuedDate
       ? new Date(issuedDate.getTime() + 15 * 24 * 60 * 60 * 1000)
       : null;
-  
-    return dueDate && new Date(dueDate) < new Date();
-  });
-  
-  const soldBooks = books.filter((book) => {
-    const issuedDate = book.issuedDate ? new Date(book.issuedDate) : null;
-    const dueDate = book.dueDate
-      ? new Date(book.dueDate)
-      : issuedDate
-      ? new Date(issuedDate.getTime() + 15 * 24 * 60 * 60 * 1000)
-      : null;
-  
-    return book.status === "sold" && dueDate && new Date(dueDate) < new Date();
-  });
-  
 
+    return dueDate && dueDate < new Date(); // Check if dueDate has passed
+  });
+
+  // Filter sold books
+  const soldBooks = books.filter(
+    (book) => book.status === "sold" && book.issuedDate
+  );
+
+  // Aggregate monthly data for sold books
   const monthlyData = soldBooks.reduce((acc, book) => {
     if (book.issuedDate) {
-      const month = format(new Date(book.issuedDate), "MMMM");
+      const issuedDate = new Date(book.issuedDate);
+      const month = format(issuedDate, "MMMM");
       acc[month] = (acc[month] || 0) + 1;
     }
     return acc;
   }, {} as Record<string, number>);
 
+  // Prepare data for chart
   const chartData = Object.entries(monthlyData).map(([month, count]) => ({
     month,
     books: count,
@@ -71,6 +74,7 @@ export default function AdminDashboard() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
+      {/* Books by Category */}
       <section className="mb-8">
         <h2 className="text-2xl font-semibold mb-4">Books by Category</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -86,6 +90,7 @@ export default function AdminDashboard() {
         </div>
       </section>
 
+      {/* Overdue Books */}
       <section className="mb-8">
         <h2 className="text-2xl font-semibold mb-4">Overdue Books</h2>
         <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -107,21 +112,17 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {soldBooks.map((book) => (
+              {overdueBooks.map((book) => (
                 <tr key={JSON.stringify(book._id)}>
                   <td className="px-6 py-4 whitespace-nowrap">{book.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {book.category}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{book.category}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {book.dueDate
                       ? format(new Date(book.dueDate), "MMM dd, yyyy")
                       : "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="bg-red-300 rounded-full px-2">
-                      Overdue
-                    </span>
+                    <span className="bg-red-300 rounded-full px-2">Overdue</span>
                   </td>
                 </tr>
               ))}
@@ -130,6 +131,7 @@ export default function AdminDashboard() {
         </div>
       </section>
 
+      {/* Monthly Book Sales Chart */}
       <section>
         <h2 className="text-2xl font-semibold mb-4">Monthly Book Sales</h2>
         <div className="bg-white p-4 rounded-lg shadow">
