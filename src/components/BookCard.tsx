@@ -33,7 +33,7 @@ export default function BookCard() {
 
   async function init() {
     try {
-      const response = await axios.get(`http://localhost:3000/getBooks`);
+      const response = await axios.get(`${backendUrl}/getBooks`);
       setBooks(response.data.data);
       setLoading(false);
     } catch (error) {
@@ -48,7 +48,7 @@ export default function BookCard() {
 
   const updateBookData = async (bookId: any) => {
     try {
-      await axios.put(`http://localhost:3000/buyBooks`, {
+      await axios.put(`${backendUrl}/buyBooks`, {
         bookId: bookId,
         status: "sold",
         issuedDate : new Date()
